@@ -30,6 +30,9 @@ Set these environment variables or use command-line options:
 # Registration flow (requires BUNQ_API_KEY; Pro subscription required)
 ./bunq.sh register -k YOUR_API_KEY
 
+# Display user info
+./bunq.sh -t YOUR_SESSION_TOKEN user-info
+
 # Fetch balances (requires valid session token)
 ./bunq.sh -t YOUR_SESSION_TOKEN balances
 ```

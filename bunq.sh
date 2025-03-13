@@ -29,6 +29,7 @@ Options:
 
 Commands:
   register              Run the registration flow
+  user                  Fetch user information
   balances              Fetch balances for cheking and savings accounts
 EOF
   return 0
@@ -71,6 +72,20 @@ echo_info() {
   fi
 
   printf "%b\n" "${blue}INF${nc} $*" >&2
+}
+
+set_session_token() {
+  if [[ -z "$BUNQ_SESSION_TOKEN" ]]
+  then
+    if [[ -r "$BUNQ_SESSION_TOKEN_FILE" ]]
+    then
+      BUNQ_SESSION_TOKEN=$(cat "$BUNQ_SESSION_TOKEN_FILE")
+      echo_info "Read session token from $BUNQ_SESSION_TOKEN_FILE"
+    else
+      echo_error "Missing BUNQ_SESSION_TOKEN. Use the -t option, or run the register command."
+      return 2
+    fi
+  fi
 }
 
 # sign_payload takes a payload string and returns its base64-encoded RSA SHA256 signature.
@@ -318,8 +333,12 @@ main() {
         ACTION="register"
         shift
         ;;
-      balances)
+      balance*)
         ACTION="balances"
+        shift
+        ;;
+      user*|acc*)
+        ACTION="user-info"
         shift
         ;;
       *)
@@ -364,17 +383,7 @@ main() {
       return 0
       ;;
     balances)
-      if [[ -z "$BUNQ_SESSION_TOKEN" ]]
-      then
-        if [[ -r "$BUNQ_SESSION_TOKEN_FILE" ]]
-        then
-          BUNQ_SESSION_TOKEN=$(cat "$BUNQ_SESSION_TOKEN_FILE")
-          echo_info "Read session token from $BUNQ_SESSION_TOKEN_FILE"
-        else
-          echo_error "Missing BUNQ_SESSION_TOKEN. Use the -t option, or run the register command."
-          return 2
-        fi
-      fi
+      set_session_token || return 2
 
       if ! data=$(fetch_all_balances)
       then
@@ -394,6 +403,35 @@ main() {
         | to_entries[].value
         | select(.status != "CANCELLED")
         | [.description, .balance.value]
+        | @tsv
+      '
+      ;;
+    user-info)
+      set_session_token || return 2
+      if ! data=$(user_info)
+      then
+        echo_error "Failed to fetch user info"
+        return 1
+      fi
+
+      if [[ "$JSON_OUTPUT" ]]
+      then
+        jq -e <<< "$data"
+        return "$?"
+      fi
+
+      # TODO Pretty output
+      jq -er <<< "$data" '
+        .Response[].UserPerson
+        | (.alias[] | select(.type == "EMAIL").value) as $email
+        | (.alias[] | select(.type == "PHONE_NUMBER").value) as $phone
+        | (.address_main | .street + " " + .house_number + ", " + .postal_code + " " + .city) as $address
+        | [
+            .display_name,
+            $email,
+            $phone,
+            $address
+          ]
         | @tsv
       '
       ;;

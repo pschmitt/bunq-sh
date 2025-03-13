@@ -1,4 +1,4 @@
-# 📜 bunq.sh
+# 🤑 bunq.sh
 
 **bunq.sh** is a succinct Bash script to interact with the [bunq API](https://doc.bunq.com/).
 It provides device registration, and allows fetching balances for checking

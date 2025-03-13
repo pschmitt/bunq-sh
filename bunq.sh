@@ -37,15 +37,15 @@ EOF
 echo_debug() {
   [[ -z $DEBUG ]] && return 0
 
-  local red nc
+  local magenta nc
 
   if [[ -t 2 && -z "$NO_COLOR" ]]
   then
-    red='\033[1;35m'
+    magenta='\033[1;35m'
     nc='\033[0m'
   fi
 
-  printf "%b\n" "${red}DBG${nc} $*" >&2
+  printf "%b\n" "${magenta}DBG${nc} $*" >&2
 }
 
 

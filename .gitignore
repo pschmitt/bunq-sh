@@ -1,0 +1,4 @@
+*.pem
+.envrc
+archive/
+responses/

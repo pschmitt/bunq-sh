@@ -12,6 +12,7 @@ BUNQ_SESSION_TOKEN_FILE="${BUNQ_SESSION_TOKEN_FILE:-}"
 DEBUG=${DEBUG:-}
 JSON_OUTPUT=${JSON_OUTPUT:-}
 NO_COLOR="${NO_COLOR:-}"
+QUIET=${QUIET:-}
 
 usage() {
   cat <<EOF
@@ -63,6 +64,7 @@ echo_error() {
 }
 
 echo_info() {
+  [[ -n $QUIET ]] && return 0
   local blue nc
 
   if [[ -t 2 && -z "$NO_COLOR" ]]
@@ -329,6 +331,10 @@ main() {
         ;;
       --no-color)
         NO_COLOR=1
+        shift
+        ;;
+      -q|--quiet)
+        QUIET=1
         shift
         ;;
       register)

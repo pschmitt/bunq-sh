@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 
-# https://doc.bunq.com/
+# API docs: https://doc.bunq.com/
+# Response codes are described here: https://beta.doc.bunq.com/basics/errors
 
 # Default configuration
+BUNQ_API_URL_PROD=https://api.bunq.com
+BUNQ_API_URL_SANDBOX=https://public-api.sandbox.bunq.com
+BUNQ_API_URL="${BUNQ_API_URL:-${BUNQ_API_URL_PROD}}"
+
 BUNQ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/bunq"
-BUNQ_API_URL="${BUNQ_API_URL:-https://api.bunq.com}"
-BUNQ_API_KEY="${BUNQ_API_KEY:-}"
 BUNQ_PRIVKEY="${BUNQ_PRIVKEY:-${BUNQ_CONFIG_HOME}/keys/privkey.pem}"
 BUNQ_PUBKEY="${BUNQ_PUBKEY:-${BUNQ_CONFIG_HOME}/keys/pubkey.pem}"
+
+BUNQ_API_KEY="${BUNQ_API_KEY:-}"
 BUNQ_DEVICE_NAME="${BUNQ_DEVICE_NAME:-$(basename "$0")@$(uname -n)}" # bunq.sh@hostname
 BUNQ_SESSION_TOKEN="${BUNQ_SESSION_TOKEN:-}"
 BUNQ_SESSION_TOKEN_FILE="${BUNQ_SESSION_TOKEN_FILE:-}"
+BUNQ_INSTALLATION_TOKEN="${BUNQ_INSTALLATION_TOKEN:-}"
+
 DEBUG=${DEBUG:-}
 JSON_OUTPUT=${JSON_OUTPUT:-}
 NO_COLOR="${NO_COLOR:-}"
@@ -21,15 +28,17 @@ usage() {
 Usage: $(basename "$0") [options] <command>
 
 Options:
-  -h, --help            Show this help message and exit
-  -d, --debug           Enable debug output
-  -t, --trace           Enable shell tracing
-  -j, --json            Output raw JSON data
-  -k, --api-key KEY     Set API key (mainly intended for device registration)
-  -t, --token TOKEN     Set your session token
-  -u, --url URL         Set the BUNQ_API_URL (default: https://api.bunq.com)
-  -q, --quiet           Suppress non-error output
-  --no-color            Disable color output
+  -h, --help                      Show this help message and exit
+  -d, --debug                     Enable debug output
+  -t, --trace                     Enable shell tracing
+  -j, --json                      Output raw JSON data
+  -k, --api-key KEY               Set API key (BUNQ_API_KEY)
+  -t, --token TOKEN               Set your session token (BUNQ_SESSION_TOKEN)
+  -I, --installation-token TOKEN  Set the instalation token (BUNQ_INSTALLATION_TOKEN)
+  -u, --url URL                   Set the BUNQ_API_URL (default: $BUNQ_API_URL_PROD)
+  --sandbox                       Target the sandbox API by setting BUNQ_API_URL to $BUNQ_API_URL_SANDBOX
+  -q, --quiet                     Suppress non-error output
+  --no-color                      Disable color output
 
 Commands:
   register              Run the registration flow
@@ -94,10 +103,11 @@ set_session_token() {
 }
 
 # sign_payload takes a payload string and returns its base64-encoded RSA SHA256 signature.
+# https://beta.doc.bunq.com/basics/authentication/signing
 sign_payload() {
   local payload="$1"
-  openssl dgst -sha256 -sign "$BUNQ_PRIVKEY" <<< "$payload" | \
-    base64 -w 0 | tr -d '\n'
+  printf '%s' "$payload" | openssl dgst -sha256 -sign "$BUNQ_PRIVKEY" | \
+    base64 -w 0
 }
 
 generate_keys() {
@@ -115,6 +125,7 @@ generate_keys() {
   echo_info "Generated keys: $BUNQ_PRIVKEY and $BUNQ_PUBKEY"
 }
 
+# https://beta.doc.bunq.com/quickstart/opening-a-session#id-1.-post-installation
 register_installation() {
   if [[ ! -f $BUNQ_PUBKEY ]]
   then
@@ -137,6 +148,7 @@ register_installation() {
   '
 }
 
+# https://beta.doc.bunq.com/quickstart/opening-a-session#id-2.-post-device-server
 register_device() {
   local installation_token="$1"
 
@@ -173,6 +185,7 @@ register_device() {
   '
 }
 
+# https://beta.doc.bunq.com/quickstart/opening-a-session#id-3.-post-session-server
 create_session() {
   local installation_token="$1"
 
@@ -183,7 +196,7 @@ create_session() {
   fi
 
   local payload
-  payload=$(jq -n --arg secret "$BUNQ_API_KEY" '{ secret: $secret }')
+  payload=$(jq -cn --arg secret "$BUNQ_API_KEY" '{ secret: $secret }')
 
   local signature
   signature=$(sign_payload "$payload")
@@ -199,6 +212,28 @@ create_session() {
   jq -er <<< "$response" '
     .Response[] | select(has("Token")) | .Token.token
   '
+}
+
+login() {
+  local installation_token="${1:-$BUNQ_INSTALLATION_TOKEN}"
+
+  if [[ -z "$installation_token" ]]
+  then
+    echo_error "Missing installation token. Register first, or set BUNQ_INSTALLATION_TOKEN"
+    return 1
+  fi
+
+  local session_token
+  session_token=$(create_session "$installation_token")
+
+  if [[ -z "$session_token" || "$session_token" == "null" ]]
+  then
+    echo_error "Failed to create session."
+    return 2
+  fi
+
+  echo_info "Session token: $session_token"
+  return 0
 }
 
 bunq_api_curl() {
@@ -287,14 +322,13 @@ fetch_all_balances() {
 }
 
 main() {
-  local ACTION
-
   if [[ "$#" -lt 1 ]]
   then
     usage
     return 2
   fi
 
+  local -a args
   while [[ "$#" -gt 0 ]]
   do
     case "$1" in
@@ -320,6 +354,10 @@ main() {
         BUNQ_SESSION_TOKEN="$2"
         shift 2
         ;;
+      -I|--installation-token)
+        BUNQ_INSTALLATION_TOKEN="$2"
+        shift 2
+        ;;
       --priv|--privkey)
         BUNQ_PRIVKEY="$2"
         shift 2
@@ -332,6 +370,10 @@ main() {
         BUNQ_API_URL="$2"
         shift 2
         ;;
+      --sandbox)
+        BUNQ_API_URL="$BUNQ_API_URL_SANDBOX"
+        shift
+        ;;
       --no-color)
         NO_COLOR=1
         shift
@@ -340,25 +382,51 @@ main() {
         QUIET=1
         shift
         ;;
-      register)
-        ACTION="register"
-        shift
-        ;;
-      balance*)
-        ACTION="balances"
-        shift
-        ;;
-      user*|acc*)
-        ACTION="user-info"
-        shift
-        ;;
-      *)
+      -*)
         echo_error "Unknown argument: $1"
         usage
         return 2
         ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
     esac
   done
+
+  set -- "${args[@]}"
+
+  # process action/action aliases
+  if [[ -z "$1" ]]
+  then
+    echo_error "Missing command"
+    usage >&2
+    return 2
+  fi
+
+  local ACTION="$1"
+  case "$ACTION" in
+    register)
+      ACTION="register"
+      shift
+      ;;
+    login)
+      ACTION="login"
+      shift
+      ;;
+    balance*)
+      ACTION="balances"
+      shift
+      ;;
+    user*|acc*)
+      ACTION="user-info"
+      shift
+      ;;
+    *)
+      echo_error "Unknown command: $1"
+      return 2
+      ;;
+  esac
 
   local data
 
@@ -413,6 +481,9 @@ main() {
       echo_info "Device token: $device_token"
       echo_info "Session token: $session_token"
       return 0
+      ;;
+    login)
+      login "$BUNQ_INSTALLATION_TOKEN"
       ;;
     balances)
       set_session_token || return 2

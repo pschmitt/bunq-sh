@@ -35,6 +35,9 @@ Set these environment variables or use command-line options:
 
 # Fetch balances (requires valid session token)
 ./bunq.sh -t YOUR_SESSION_TOKEN balances
+
+# Get a new session token
+./bunq.sh login -k YOUR_API_KEY -I INSTALLATION_TOKEN
 ```
 
 ## 📚 References

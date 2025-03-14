@@ -38,6 +38,9 @@ Set these environment variables or use command-line options:
 
 # Get a new session token
 ./bunq.sh login -k YOUR_API_KEY -I INSTALLATION_TOKEN
+
+# Execute a raw API call
+./bunq.sh raw -t SESSION_TOKEN /v1/device-server
 ```
 
 ## 📚 References

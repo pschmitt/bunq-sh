@@ -148,6 +148,7 @@ register_installation() {
   '
 }
 
+# https://doc.bunq.com/api/1/call/device-server/method/post#/device-server/CREATE_DeviceServer
 # https://beta.doc.bunq.com/quickstart/opening-a-session#id-2.-post-device-server
 register_device() {
   local installation_token="$1"
@@ -422,6 +423,10 @@ main() {
       ACTION="user-info"
       shift
       ;;
+    raw|curl)
+      ACTION="raw-curl"
+      shift
+      ;;
     *)
       echo_error "Unknown command: $1"
       return 2
@@ -537,6 +542,9 @@ main() {
           ]
         | @tsv
       '
+      ;;
+    raw-curl)
+      bunq_api_curl "$@"
       ;;
     *)
       echo_error "Unknown command: $ACTION"

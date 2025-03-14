@@ -28,6 +28,7 @@ Options:
   -k, --api-key KEY     Set API key (mainly intended for device registration)
   -t, --token TOKEN     Set your session token
   -u, --url URL         Set the BUNQ_API_URL (default: https://api.bunq.com)
+  -q, --quiet           Suppress non-error output
   --no-color            Disable color output
 
 Commands:

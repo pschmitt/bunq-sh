@@ -544,7 +544,14 @@ main() {
       '
       ;;
     raw-curl)
-      bunq_api_curl "$@"
+      bunq_api_curl "$@" | {
+        if [[ -n $JSON_OUTPUT ]]
+        then
+          jq -e
+        else
+          cat
+        fi
+      }
       ;;
     *)
       echo_error "Unknown command: $ACTION"

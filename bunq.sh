@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# https://doc.bunq.com/
+
 # Default configuration
 BUNQ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/bunq"
 BUNQ_API_URL="${BUNQ_API_URL:-https://api.bunq.com}"

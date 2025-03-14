@@ -362,17 +362,18 @@ main() {
   case "$ACTION" in
     register)
       generate_keys
+
       local installation_token
-      installation_token=$(register_installation)
-      if [[ -z "$installation_token" ]]
+      if ! installation_token=$(register_installation) || \
+         [[ -z "$installation_token" || "$installation_token" == "null" ]]
       then
         echo_error "Failed to register installation."
         return 2
       fi
 
       local device_token
-      device_token=$(register_device "$installation_token")
-      if [[ -z "$device_token" ]]
+      if ! device_token=$(register_device "$installation_token") ||
+         [[ -z "$device_token" || "$device_token" == "null" ]]
       then
         echo_error "Failed to register device."
         return 2
@@ -384,6 +385,22 @@ main() {
       then
         echo_error "Failed to create session."
         return 2
+      fi
+
+      if [[ -n "$JSON_OUTPUT" ]]
+      then
+        jq -en \
+          --arg installation_token "$installation_token" \
+          --arg device_token "$device_token" \
+          --arg session_token "$session_token" \
+          '
+            {
+              installation_token: $installation_token,
+              device_token: $device_token,
+              session_token: $session_token
+            }
+          '
+        return "$?"
       fi
 
       echo_info "Your session token is: $session_token"

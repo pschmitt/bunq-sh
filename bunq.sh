@@ -406,7 +406,9 @@ main() {
         return "$?"
       fi
 
-      echo_info "Your session token is: $session_token"
+      echo_info "Installation token: $installation_token"
+      echo_info "Device token: $device_token"
+      echo_info "Session token: $session_token"
       return 0
       ;;
     balances)

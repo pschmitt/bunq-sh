@@ -464,7 +464,7 @@ main() {
       ;;
     *)
       echo_error "Unknown command: $ACTION"
-      usage
+      usage >&2
       return 2
       ;;
   esac

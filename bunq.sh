@@ -423,6 +423,10 @@ main() {
         QUIET=1
         shift
         ;;
+      --)
+        args+=("$@")
+        break
+        ;;
       -*)
         echo_error "Unknown argument: $1"
         usage

@@ -370,7 +370,7 @@ main() {
       if ! installation_token=$(register_installation) || \
          [[ -z "$installation_token" || "$installation_token" == "null" ]]
       then
-        echo_error "Failed to register installation."
+        echo_error "Failed to register installation!"
         return 2
       fi
 
@@ -378,7 +378,8 @@ main() {
       if ! device_token=$(register_device "$installation_token") ||
          [[ -z "$device_token" || "$device_token" == "null" ]]
       then
-        echo_error "Failed to register device."
+        echo_error "Failed to register device!"
+        echo_info "Installation token: $installation_token"
         return 2
       fi
 
@@ -386,7 +387,9 @@ main() {
       if ! session_token=$(create_session "$installation_token") || \
          [[ -z "$session_token" || "$session_token" == "null" ]]
       then
-        echo_error "Failed to create session."
+        echo_error "Failed to create session!"
+        echo_info "Installation token: $installation_token"
+        echo_info "Device token: $device_token"
         return 2
       fi
 

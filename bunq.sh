@@ -88,6 +88,16 @@ echo_info() {
   printf "%b\n" "${blue}INF${nc} $*" >&2
 }
 
+array_to_json() {
+  if [[ $# -eq 0 ]]
+  then
+    printf '%s\n' "[]"
+    return 0
+  fi
+
+  printf '%s\n' "$@" | jq -cRn '[inputs]'
+}
+
 set_session_token() {
   if [[ -z "$BUNQ_SESSION_TOKEN" ]]
   then
@@ -148,6 +158,10 @@ register_installation() {
   '
 }
 
+public_ip() {
+  curl -fsSL https://checkip.amazonaws.com/
+}
+
 # https://doc.bunq.com/api/1/call/device-server/method/post#/device-server/CREATE_DeviceServer
 # https://beta.doc.bunq.com/quickstart/opening-a-session#id-2.-post-device-server
 register_device() {
@@ -159,11 +173,37 @@ register_device() {
     return 1
   fi
 
+  local permitted_ips='[]'
+  if [[ -n $BUNQ_WILDCARD_API ]]
+  then
+    local pub_ip
+    if ! pub_ip=$(public_ip)
+    then
+      echo_error "Failed to determine public IP. We won't be able to create a wilcard key."
+      return 1
+    fi
+
+    permitted_ips=$(array_to_json "$pub_ip" "*")
+  fi
+
   local payload
   payload=$(jq -n \
-    --arg desc "${BUNQ_DEVICE_NAME}" \
-    --arg secret "${BUNQ_API_KEY}" \
-    '{ description: $desc, secret: $secret }')
+    --arg description "$BUNQ_DEVICE_NAME" \
+    --arg secret "$BUNQ_API_KEY" \
+    --argjson permitted_ips "$permitted_ips" \
+    '
+      {
+        description: $description,
+        secret: $secret,
+      }
+      | if ($permitted_ips | length) > 0
+        then
+          .permitted_ips = $permitted_ips
+        else
+          .
+        end
+    '
+  )
 
   local signature
   signature=$(sign_payload "$payload")

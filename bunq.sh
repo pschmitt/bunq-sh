@@ -103,9 +103,11 @@ generate_keys() {
 
   echo_info "Generating RSA key pair..."
   mkdir -p "$(dirname "$BUNQ_PRIVKEY")" "$(dirname "$BUNQ_PUBKEY")"
+
   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$BUNQ_PRIVKEY"
   openssl rsa -in "$BUNQ_PRIVKEY" -pubout -out "$BUNQ_PUBKEY"
-  echo_info "Keys generated: $BUNQ_PRIVKEY and $BUNQ_PUBKEY"
+
+  echo_info "Generated keys: $BUNQ_PRIVKEY and $BUNQ_PUBKEY"
 }
 
 register_installation() {
@@ -371,15 +373,14 @@ main() {
       fi
 
       local session_token
-      session_token=$(create_session "$installation_token")
-      if [[ -z "$session_token" || "$session_token" == "null" ]]
+      if ! session_token=$(create_session "$installation_token") || \
+         [[ -z "$session_token" || "$session_token" == "null" ]]
       then
         echo_error "Failed to create session."
         return 2
       fi
 
-      echo_info "Registration complete."
-      echo "Your session token is: $session_token"
+      echo_info "Your session token is: $session_token"
       return 0
       ;;
     balances)

@@ -17,6 +17,7 @@ BUNQ_DEVICE_NAME="${BUNQ_DEVICE_NAME:-$(basename "$0")@$(uname -n)}" # bunq.sh@h
 BUNQ_SESSION_TOKEN="${BUNQ_SESSION_TOKEN:-}"
 BUNQ_SESSION_TOKEN_FILE="${BUNQ_SESSION_TOKEN_FILE:-}"
 BUNQ_INSTALLATION_TOKEN="${BUNQ_INSTALLATION_TOKEN:-}"
+BUNQ_INCLUDE_EXT_ACCOUNTS="${BUNQ_INCLUDE_EXT_ACCOUNTS:-}"
 
 DEBUG=${DEBUG:-}
 JSON_OUTPUT=${JSON_OUTPUT:-}
@@ -334,8 +335,8 @@ fetch_balances() {
 fetch_savings() {
   echo_info "Fetching savings account balances..."
 
-  local user_id
-  if ! user_id=$(user_id) || [[ -z "$user_id" ]]
+  local user_id="$1"
+  if [[ -z $user_id ]] && ! user_id=$(user_id) || [[ -z "$user_id" ]]
   then
     echo_error "Failed to extract user id from user info."
     return 1
@@ -348,17 +349,57 @@ fetch_savings() {
     "/v1/user/${user_id}/monetary-account-savings")
 
   jq -e <<< "$res"
-  # jq -er <<< "$res" '
-  #   .Response[]? |
-  #   .MonetaryAccountSavings? |
-  #   "Savings Account ID: \(.id) - Balance: \(.balance.value) \(.balance.currency)"
-  # '
+}
+
+fetch_ext_balances() {
+  echo_info "Fetching external bank account balances..."
+
+  local user_id="$1"
+  if [[ -z $user_id ]] && ! user_id=$(user_id) || [[ -z "$user_id" ]]
+  then
+    echo_error "Failed to extract user id from user info."
+    return 1
+  fi
+
+  echo_debug "User ID: $user_id"
+
+  local res
+  res=$(bunq_api_curl \
+    "/v1/user/${user_id}/monetary-account-external")
+
+  # External Accounts have a balance field, but it's *always* 0.00
+  # There are 2 fields we can use instead: balance_available and balance_booked
+  jq -e <<< "$res" '
+    .Response |= map(
+      .MonetaryAccountExternal |= (
+        .balance = (
+          if .open_banking_account.OpenBankingAccount.balance_available != null
+          then
+            .open_banking_account.OpenBankingAccount.balance_available
+          else
+            .open_banking_account.OpenBankingAccount.balance_booked
+          end
+        )
+      )
+    )
+  '
 }
 
 fetch_all_balances() {
+  local user_id
+  if ! user_id=$(user_id) || [[ -z "$user_id" ]]
+  then
+    echo_error "Failed to extract user id from user info."
+    return 1
+  fi
+
   {
-    fetch_balances
-    fetch_savings
+    fetch_balances "$user_id"
+    fetch_savings "$user_id"
+    if [[ -n "$BUNQ_INCLUDE_EXT_ACCOUNTS" ]]
+    then
+      fetch_ext_balances "$user_id"
+    fi
   } | jq -es 'reduce .[] as $item ([]; . + $item.Response)'
 }
 
@@ -406,6 +447,10 @@ main() {
       --pub|--pubkey)
         BUNQ_PUBKEY="$2"
         shift 2
+        ;;
+      -e|--ext*)
+        BUNQ_INCLUDE_EXT_ACCOUNTS=1
+        shift
         ;;
       -u|--url)
         BUNQ_API_URL="$2"

@@ -51,7 +51,7 @@ EOF
 echo_debug() {
   [[ -z $DEBUG ]] && return 0
 
-  local magenta nc
+  local magenta="" nc=""
 
   if [[ -t 2 && -z "$NO_COLOR" ]]
   then
@@ -64,7 +64,7 @@ echo_debug() {
 
 
 echo_error() {
-  local red nc
+  local red="" nc=""
 
   if [[ -t 2 && -z "$NO_COLOR" ]]
   then
@@ -77,7 +77,7 @@ echo_error() {
 
 echo_info() {
   [[ -n $QUIET ]] && return 0
-  local blue nc
+  local blue="" nc=""
 
   if [[ -t 2 && -z "$NO_COLOR" ]]
   then

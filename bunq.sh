@@ -42,9 +42,11 @@ Options:
   --no-color                      Disable color output
 
 Commands:
-  register              Run the registration flow
+  register              Run the registration flow (step 1 - only required once)
+  login                 Login, generate session token (step 2)
   user                  Fetch user information
   balances              Fetch balances for cheking and savings accounts
+  raw ENDPOINT          Execute a raw API request
 EOF
   return 0
 }

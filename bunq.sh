@@ -22,6 +22,7 @@ BUNQ_INCLUDE_EXT_ACCOUNTS="${BUNQ_INCLUDE_EXT_ACCOUNTS:-}"
 DEBUG=${DEBUG:-}
 JSON_OUTPUT=${JSON_OUTPUT:-}
 NO_COLOR="${NO_COLOR:-}"
+STORE_SESSION_TOKEN=${STORE_SESSION_TOKEN:-}
 QUIET=${QUIET:-}
 
 usage() {
@@ -38,6 +39,7 @@ Options:
   -I, --installation-token TOKEN  Set the installation token (BUNQ_INSTALLATION_TOKEN)
   -u, --url URL                   Set the BUNQ_API_URL (default: $BUNQ_API_URL_PROD)
   --sandbox                       Target the sandbox API by setting BUNQ_API_URL to $BUNQ_API_URL_SANDBOX
+  --store-token FILE              Store session token in BUNQ_SESSION_TOKEN_FILE
   -q, --quiet                     Suppress non-error output
   --no-color                      Disable color output
 
@@ -146,6 +148,11 @@ set_session_token() {
   fi
 
   echo_info "Session token created successfully"
+  if [[ -n $STORE_SESSION_TOKEN ]]
+  then
+    printf '%s\n' "$BUNQ_SESSION_TOKEN" > "$BUNQ_SESSION_TOKEN_FILE"
+  fi
+  return 0
 }
 
 # sign_payload takes a payload string and returns its base64-encoded RSA SHA256 signature.
@@ -493,6 +500,10 @@ main() {
         ;;
       --sandbox)
         BUNQ_API_URL="$BUNQ_API_URL_SANDBOX"
+        shift
+        ;;
+      --store-token|--store-session-token)
+        STORE_SESSION_TOKEN=1
         shift
         ;;
       --no-color)

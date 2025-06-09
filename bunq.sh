@@ -159,6 +159,7 @@ set_session_token() {
 # sign_payload takes a payload string and returns its base64-encoded RSA SHA256 signature.
 # https://beta.doc.bunq.com/basics/authentication/signing
 sign_payload() {
+  generate_keys >&2 || return 1
   local payload="$1"
   printf '%s' "$payload" | openssl dgst -sha256 -sign "$BUNQ_PRIVKEY" | \
     base64 -w 0

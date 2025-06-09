@@ -162,7 +162,7 @@ generate_keys() {
     return 0
   fi
 
-  echo_info "Generating RSA key pair..."
+  echo_info "Generating RSA key pair"
   mkdir -p "$(dirname "$BUNQ_PRIVKEY")" "$(dirname "$BUNQ_PUBKEY")"
 
   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$BUNQ_PRIVKEY"
@@ -344,7 +344,7 @@ user_id() {
 }
 
 fetch_balances() {
-  echo_info "Fetching main bank account balances..."
+  echo_info "Fetching main bank account balances"
 
   local user_id
   if ! user_id=$(user_id) || [[ -z "$user_id" ]]
@@ -368,7 +368,7 @@ fetch_balances() {
 }
 
 fetch_savings() {
-  echo_info "Fetching savings account balances..."
+  echo_info "Fetching savings account balances"
 
   local user_id="$1"
   if [[ -z $user_id ]] && ! user_id=$(user_id) || [[ -z "$user_id" ]]
@@ -387,7 +387,7 @@ fetch_savings() {
 }
 
 fetch_ext_balances() {
-  echo_info "Fetching external bank account balances..."
+  echo_info "Fetching external bank account balances"
 
   local user_id="$1"
   if [[ -z $user_id ]] && ! user_id=$(user_id) || [[ -z "$user_id" ]]

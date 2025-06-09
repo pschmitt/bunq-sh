@@ -489,7 +489,7 @@ main() {
   set -- "${args[@]}"
 
   # process action/action aliases
-  if [[ -z "$1" ]]
+  if [[ -z "${1:-}" ]]
   then
     echo_error "Missing command"
     usage >&2

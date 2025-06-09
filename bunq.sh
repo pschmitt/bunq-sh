@@ -264,7 +264,7 @@ register_device() {
 
 # https://beta.doc.bunq.com/quickstart/opening-a-session#id-3.-post-session-server
 create_session() {
-  local installation_token="$1"
+  local installation_token="${1:-$BUNQ_INSTALLATION_TOKEN}"
 
   if [[ -z "$BUNQ_API_KEY" ]]
   then

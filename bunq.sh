@@ -35,7 +35,7 @@ Options:
   -j, --json                      Output raw JSON data
   -k, --api-key KEY               Set API key (BUNQ_API_KEY)
   -t, --token TOKEN               Set your session token (BUNQ_SESSION_TOKEN)
-  -I, --installation-token TOKEN  Set the instalation token (BUNQ_INSTALLATION_TOKEN)
+  -I, --installation-token TOKEN  Set the installation token (BUNQ_INSTALLATION_TOKEN)
   -u, --url URL                   Set the BUNQ_API_URL (default: $BUNQ_API_URL_PROD)
   --sandbox                       Target the sandbox API by setting BUNQ_API_URL to $BUNQ_API_URL_SANDBOX
   -q, --quiet                     Suppress non-error output

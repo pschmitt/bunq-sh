@@ -462,9 +462,11 @@ main() {
         ;;
       -d|--debug)
         DEBUG=1
+        shift
         ;;
       --trace)
         set -x
+        shift
         ;;
       -j|--json|--raw)
         JSON_OUTPUT=1

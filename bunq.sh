@@ -65,6 +65,17 @@ echo_debug() {
   printf "%b\n" "${magenta}DBG${nc} $*" >&2
 }
 
+echo_warning() {
+  local yellow="" nc=""
+
+  if [[ -t 2 && -z "$NO_COLOR" ]]
+  then
+    yellow='\033[1;33m'
+    nc='\033[0m'
+  fi
+
+  printf "%b\n" "${yellow}WRN${nc} $*" >&2
+}
 
 echo_error() {
   local red="" nc=""
@@ -102,17 +113,39 @@ array_to_json() {
 }
 
 set_session_token() {
-  if [[ -z "$BUNQ_SESSION_TOKEN" ]]
+  if [[ -z "$BUNQ_SESSION_TOKEN" && -r "$BUNQ_SESSION_TOKEN_FILE" ]]
   then
-    if [[ -r "$BUNQ_SESSION_TOKEN_FILE" ]]
-    then
-      BUNQ_SESSION_TOKEN=$(cat "$BUNQ_SESSION_TOKEN_FILE")
-      echo_info "Read session token from $BUNQ_SESSION_TOKEN_FILE"
-    else
-      echo_error "Missing BUNQ_SESSION_TOKEN. Use the -t option, or run the register command."
-      return 2
-    fi
+    BUNQ_SESSION_TOKEN=$(cat "$BUNQ_SESSION_TOKEN_FILE")
+    echo_info "Read session token from $BUNQ_SESSION_TOKEN_FILE"
   fi
+
+  # Check if the session token is still valid
+  if [[ -n "$BUNQ_SESSION_TOKEN" ]]
+  then
+    if user_info &>/dev/null
+    then
+      echo_debug "Session token is valid."
+      return 0
+    fi
+
+    echo_warning "Session token is invalid or expired."
+    unset BUNQ_SESSION_TOKEN
+  fi
+
+  if [[ -z "$BUNQ_INSTALLATION_TOKEN" ]]
+  then
+    echo_error "Missing BUNQ_INSTALLATION_TOKEN. Please use the -I option, or run the register command."
+    return 2
+  fi
+
+  echo_info "Attempting to create a new session token"
+  if ! BUNQ_SESSION_TOKEN=$(create_session "$BUNQ_INSTALLATION_TOKEN")
+  then
+    echo_error "Failed to retrieve session token"
+    return 1
+  fi
+
+  echo_info "Session token created successfully"
 }
 
 # sign_payload takes a payload string and returns its base64-encoded RSA SHA256 signature.

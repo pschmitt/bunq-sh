@@ -488,15 +488,15 @@ main() {
 
   set -- "${args[@]}"
 
-  # process action/action aliases
-  if [[ -z "${1:-}" ]]
+  local ACTION="${1:-}"
+  if [[ -z "$ACTION" ]]
   then
     echo_error "Missing command"
     usage >&2
     return 2
   fi
 
-  local ACTION="$1"
+  # process action/action aliases
   case "$ACTION" in
     register)
       ACTION="register"

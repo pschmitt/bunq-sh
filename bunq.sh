@@ -39,7 +39,7 @@ Options:
   -I, --installation-token TOKEN  Set the installation token (BUNQ_INSTALLATION_TOKEN)
   -u, --url URL                   Set the BUNQ_API_URL (default: $BUNQ_API_URL_PROD)
   --sandbox                       Target the sandbox API by setting BUNQ_API_URL to $BUNQ_API_URL_SANDBOX
-  -S, --store-token FILE          Store session token in BUNQ_SESSION_TOKEN_FILE
+  -S, --store-token               Store session token in BUNQ_SESSION_TOKEN_FILE
   -q, --quiet                     Suppress non-error output
   --no-color                      Disable color output
 

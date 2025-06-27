@@ -131,6 +131,8 @@ set_session_token() {
     fi
 
     echo_warning "Session token is invalid or expired."
+    # Remove token token file
+    rm -f "$BUNQ_SESSION_TOKEN_FILE"
     unset BUNQ_SESSION_TOKEN
   fi
 

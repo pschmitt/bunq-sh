@@ -48,6 +48,7 @@ Commands:
   login                 Login, generate session token (step 2)
   user                  Fetch user information
   balances              Fetch balances for cheking and savings accounts
+  transactions          List recent transactions (payments)
   raw ENDPOINT          Execute a raw API request
 EOF
   return 0
@@ -449,6 +450,150 @@ fetch_all_balances() {
   } | jq -es 'reduce .[] as $item ([]; . + $item.Response)'
 }
 
+fetch_transactions() {
+  local account_filter="${1:-}"
+  local limit="${BUNQ_TRANSACTION_COUNT:-20}"
+
+  local user_id
+  if ! user_id=$(user_id) || [[ -z "$user_id" ]]
+  then
+    echo_error "Failed to extract user id from user info."
+    return 1
+  fi
+
+  local accounts_raw
+  if ! accounts_raw=$(fetch_all_balances)
+  then
+    echo_error "Failed to fetch accounts."
+    return 1
+  fi
+
+  local accounts
+  if ! accounts=$(
+    jq -c --arg filter "$account_filter" '
+      [
+        (if type == "array" then .[] else empty end)
+        | select(type == "object")
+        | to_entries[]?
+        | select(.key | startswith("MonetaryAccount"))
+        | {
+            type: .key,
+            account: .value
+          }
+        | {
+            type: .type,
+            id: (.account.id | tostring),
+            status: (.account.status // ""),
+            description: (
+              .account.description
+              // (
+                (.account.alias // [])
+                | map(select(.name != null) | .name)
+                | .[0]
+              )
+              // (
+                (.account.alias // [])
+                | map(select(.value != null) | .value)
+                | .[0]
+              )
+              // ("Account " + (.account.id | tostring))
+            )
+          }
+        | select((.status // "") != "CANCELLED")
+        | select(
+            ($filter | length) == 0 or
+            (
+              (.description // "" | ascii_downcase)
+              | contains(($filter | ascii_downcase))
+            )
+          )
+      ]
+    ' <<< "$accounts_raw"
+  )
+  then
+    echo_error "Failed to process accounts."
+    return 1
+  fi
+
+  local account_count
+  if ! account_count=$(jq 'length' <<< "$accounts")
+  then
+    return 1
+  fi
+
+  if [[ "$account_count" -eq 0 ]]
+  then
+    if [[ -n "$account_filter" ]]
+    then
+      echo_error "No accounts matched filter: $account_filter"
+    else
+      echo_error "No active accounts found."
+    fi
+    return 1
+  fi
+
+  local all_payments='[]'
+  while IFS=$'\t' read -r account_id account_name account_type
+  do
+    [[ -z "$account_id" ]] && continue
+    local endpoint response account_payments
+
+    endpoint="/v1/user/${user_id}/monetary-account/${account_id}/payment"
+    if [[ -n "$limit" ]]
+    then
+      endpoint="${endpoint}?count=${limit}"
+    fi
+
+    if ! response=$(bunq_api_curl "$endpoint")
+    then
+      echo_warning "Failed to fetch transactions for ${account_name} (${account_id}), skipping."
+      continue
+    fi
+
+    if ! account_payments=$(jq -c \
+        --arg account_id "$account_id" \
+        --arg account_name "$account_name" \
+        --arg account_type "$account_type" \
+        '
+          [
+            .Response[]
+            | select(.Payment != null)
+            | .Payment
+            | . + {
+                account_id: $account_id,
+                account_name: $account_name,
+                account_type: $account_type
+              }
+          ]
+        ' <<<"$response"
+      )
+    then
+      echo_error "Failed to parse transactions for ${account_name} (${account_id})."
+      return 1
+    fi
+
+    if [[ "$account_payments" == "[]" ]]
+    then
+      continue
+    fi
+
+    if ! all_payments=$(printf '%s\n' "$all_payments" "$account_payments" | jq -s 'add')
+    then
+      return 1
+    fi
+  done < <(jq -r '.[] | [.id, .description, .type] | @tsv' <<< "$accounts")
+
+  if [[ "$all_payments" != "[]" ]]
+  then
+    if ! all_payments=$(jq -c 'sort_by(.created) | reverse' <<< "$all_payments")
+    then
+      return 1
+    fi
+  fi
+
+  printf '%s\n' "$all_payments"
+}
+
 main() {
   if [[ "$#" -lt 1 ]]
   then
@@ -560,6 +705,10 @@ main() {
       ACTION="balances"
       shift
       ;;
+    trans*|tx|payment*)
+      ACTION="transactions"
+      shift
+      ;;
     user*|acc*)
       ACTION="user-info"
       shift
@@ -652,6 +801,54 @@ main() {
         | to_entries[].value
         | select(.status != "CANCELLED")
         | [.description, .balance.value]
+        | @tsv
+      '
+      ;;
+    transactions)
+      set_session_token || return 2
+
+      local account_filter=""
+      while [[ "$#" -gt 0 ]]
+      do
+        case "$1" in
+          -a|--account)
+            if [[ -z "${2:-}" ]]
+            then
+              echo_error "--account requires a value."
+              return 2
+            fi
+            account_filter="$2"
+            shift 2
+            ;;
+          *)
+            echo_error "Unknown argument for transactions: $1"
+            return 2
+            ;;
+        esac
+      done
+
+      if ! data=$(fetch_transactions "$account_filter")
+      then
+        echo_error "Failed to fetch transactions."
+        return 1
+      fi
+
+      if [[ -n $JSON_OUTPUT ]]
+      then
+        jq -e <<< "$data"
+        return "$?"
+      fi
+
+      jq -r <<< "$data" '
+        .[]
+        | [
+            .created,
+            .account_name,
+            (.amount.value // ""),
+            (.amount.currency // ""),
+            (.counterparty_alias.display_name // .counterparty_alias.iban // ""),
+            (.description // "")
+          ]
         | @tsv
       '
       ;;

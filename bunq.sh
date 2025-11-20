@@ -641,6 +641,15 @@ main() {
         BUNQ_PUBKEY="$2"
         shift 2
         ;;
+      -a|--account)
+        if [[ -z "${2:-}" ]]
+        then
+          echo_error "--account requires a value."
+          return 2
+        fi
+        ACCOUNT_FILTER="$2"
+        shift 2
+        ;;
       -e|--ext*)
         BUNQ_INCLUDE_EXT_ACCOUNTS=1
         shift
@@ -807,27 +816,7 @@ main() {
     transactions)
       set_session_token || return 2
 
-      local account_filter=""
-      while [[ "$#" -gt 0 ]]
-      do
-        case "$1" in
-          -a|--account)
-            if [[ -z "${2:-}" ]]
-            then
-              echo_error "--account requires a value."
-              return 2
-            fi
-            account_filter="$2"
-            shift 2
-            ;;
-          *)
-            echo_error "Unknown argument for transactions: $1"
-            return 2
-            ;;
-        esac
-      done
-
-      if ! data=$(fetch_transactions "$account_filter")
+      if ! data=$(fetch_transactions "$ACCOUNT_FILTER")
       then
         echo_error "Failed to fetch transactions."
         return 1

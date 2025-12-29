@@ -325,6 +325,16 @@ login() {
   return 0
 }
 
+uuidgen() {
+  if command -v uuidgen &>/dev/null
+  then
+    command uuidgen
+  else
+    # Fallback: generate a UUID using /dev/urandom
+    cat /proc/sys/kernel/random/uuid
+  fi
+}
+
 bunq_api_curl() {
   local endpoint="${1#/}"
   shift

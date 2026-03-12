@@ -4,3 +4,4 @@ archive/
 responses/
 *token*
 *.json
+result

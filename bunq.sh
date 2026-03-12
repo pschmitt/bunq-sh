@@ -24,6 +24,7 @@ JSON_OUTPUT=${JSON_OUTPUT:-}
 NO_COLOR="${NO_COLOR:-}"
 STORE_SESSION_TOKEN=${STORE_SESSION_TOKEN:-}
 QUIET=${QUIET:-}
+ACCOUNT_FILTER="${ACCOUNT_FILTER:-}"
 
 usage() {
   cat <<EOF
@@ -905,3 +906,5 @@ then
   main "$@"
   exit $?
 fi
+
+# vim: set ft=bash ts=2 sw=2 et:
